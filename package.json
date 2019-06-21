@@ -1,0 +1,19 @@
+{
+  "name": "visits_counter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bunyan": "1.8.12",
+    "express": "4.17.1",
+    "lodash": "4.17.11",
+    "nconf": "0.10.0",
+    "ws": "^7.0.1"
+  }
+}
