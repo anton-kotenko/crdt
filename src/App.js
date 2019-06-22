@@ -7,8 +7,8 @@ const PersistentStorage = require('./PersistentStorage.js');
 
 class Application {
     constructor () {
-        this._nodeId = Math.random();
-        this._config = require('../config');    
+        this._config = require('../config');
+        this._nodeId = this._config.get('NAME');
         this._logger = Logger(this._config);
         this._communicationMesh = new NodesCommunicationMesh();
         this._persistentStorage = new PersistentStorage();
@@ -20,6 +20,7 @@ class Application {
 
     }
     async start () {
+        this._logger.info('Going to start');
         // TODO probably some DI framwwork can be used here
         // instead of poorman DI
         await this._counterService.start();
@@ -27,7 +28,7 @@ class Application {
         await this._httpServer.start();
     }
     async stop () {
-        await this._httpServer.stop(); 
+        await this._httpServer.stop();
         this._counter.stop();
     }
 }

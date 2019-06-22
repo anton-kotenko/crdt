@@ -19,7 +19,7 @@ async function loadFrontendSources () {
     });
 }
 
-module.exports = function (counterService) {
+module.exports = function (counterService, config) {
     const router = Router();
     router.get('/', async function (req, res) {
         counterService.increment(1);
@@ -29,7 +29,7 @@ module.exports = function (counterService) {
             .toString()
             // FIXME dirty private property. Dirty to use encodeURIcomponent instead of proper encoding
             .replace('{{snapshot}}', encodeURIComponent(JSON.stringify(counterService._counter.getSnapshot())))
-            .replace('{{nodeId}}', counterService.getNodeId())
+            .replace(/\{\{nodeId\}\}/g, counterService.getNodeId())
             .replace('{{JS}}', js);
 
         res.status = 200;

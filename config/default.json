@@ -1,3 +1,5 @@
 {
-    "LISTEN_PORT": 1234
+    "LISTEN_PORT": 1234,
+    "NAME": "development-instance",
+    "LOG_LEVEL": "debug"
 }

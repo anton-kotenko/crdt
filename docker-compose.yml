@@ -1,0 +1,31 @@
+version: '3'
+services:
+    counter1:
+        build: .
+        ports:
+            - "1231:1234"
+        expose:
+            - "1234"
+        environment:
+            NAME: "counter1"
+    counter2:
+        build: .
+        ports:
+            - "1232:1234"
+        expose:
+            - "1234"
+        environment:
+            NAME: "counter2"
+    counter3:
+        build: .
+        ports:
+            - "1233:1234"
+        expose:
+            - "1234"
+        environment:
+            NAME: "counter3"
+    balancer:
+        build:
+            context: ./balancer
+        ports:
+            - "1234:8000"

@@ -107,3 +107,34 @@ from outdated machine, nohing bad will happen.
 So requirement: CRDT-counter code should work at both frontend/backend. 
 Another issue to consider: after page reload, page may be loaded from "outdated" node (e.g. balancer in front of nodes may send query to any node it likes). So to make sure that counter won't go down better to have some persistency on frontend (e.g. local storage)
 and consider all received from backend (e.g. page reload, websocket messages) takin into account "current value" and applying those changes with `merge` operation
+
+FIXME it seeems to be quite inconvenient to debug and play with local stroage usage. need to decide what to do
+
+### Run && Build
+docker build -t counter:latest .
+docker run -it -p 1234:1234 counter:latest
+
+cd balancer
+docker build -t balancer:latest .
+docker run -it -p 80:1234 balancer:latest
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

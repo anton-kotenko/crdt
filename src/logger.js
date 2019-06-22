@@ -1,4 +1,7 @@
 const bunyan = require('bunyan');
 module.exports = function (config) {
-    // FIXME implement logger
+    return bunyan.createLogger({
+        name: config.get('NAME'),
+        level: config.get('LOG_LEVEL')
+    });
 }

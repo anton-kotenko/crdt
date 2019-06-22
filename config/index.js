@@ -5,9 +5,13 @@ const ENVIRONMENT = process.env.NODE_ENV;
 
 nconf.use('memory');
 nconf.env();
-nconf.file(path.resolve(__dirname, `${ENVIRONMENT}.json`));
+if (ENVIRONMENT) {
+    nconf.file(path.resolve(__dirname, `${ENVIRONMENT}.json`));
+}
 nconf.defaults(DEFAULTS);
 nconf.required([
-    'LISTEN_PORT'
+    'LISTEN_PORT',
+    'NAME',
+    'LOG_LEVEL'
 ]);
 module.exports = nconf;

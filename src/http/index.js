@@ -23,7 +23,7 @@ class HttpServer {
         this._server = http.createServer(this._app);
         this._statsServer = new StatsServer(this._server, this._communicationMesh);
         await this._statsServer.start();
-
+        this._logger.info({ port: this._config.get('LISTEN_PORT') }, 'Goint to listen http:// and ws:// at port');
         this._server.listen(this._config.get('LISTEN_PORT'));
     }
     async stop () {
