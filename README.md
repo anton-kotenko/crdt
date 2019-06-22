@@ -2,6 +2,16 @@
 TODO: Need to implement simple example implementation of whole projects.
 Design goals: it should be simple enough, but show basic features how CRDT counter works.
 
+Generally it's possible to implement CRDT counter in two ways: as
+`Operation-based: commutative replicated data types, or CmRDTs`
+`State-based: convergent replicated data types, or CvRDTs`
+(see https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type)
+
+Operation-based looks better in terms of performance, but it is more complex
+1. it requires order and delivery guarantees from communication layer
+2. it introduces `initial state` problem: e.g. when we add new node into cluster it contains no data. It would accept changes from other nodes, but to have correct value, it should be populated with initial values for other nodes. And this requires additional implementaion efforts.
+Due to this considerations and desing goals (simplicity) the choice is `State-bases`. In heavy-loaded environment, this choice may be changed.
+
 ## Design considerations
 
 ### Communication layer
@@ -95,3 +105,5 @@ To deliver updated to frontend websockets may be used (or any alternative techno
 Frontend connects to any node in cluster (there will be balancer in front of cluster so any node may handle this query). CRDT counter code at frontend will guarantee that event if we got outdated message
 from outdated machine, nohing bad will happen.
 So requirement: CRDT-counter code should work at both frontend/backend. 
+Another issue to consider: after page reload, page may be loaded from "outdated" node (e.g. balancer in front of nodes may send query to any node it likes). So to make sure that counter won't go down better to have some persistency on frontend (e.g. local storage)
+and consider all received from backend (e.g. page reload, websocket messages) takin into account "current value" and applying those changes with `merge` operation

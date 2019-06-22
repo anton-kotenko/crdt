@@ -1,59 +1,39 @@
 const EventEmitter = require('events');
 class CRDTCounter extends EventEmitter {
-    constructor (nodeId, communicationMesh, persistentStorage) {
+    constructor (state = {}) {
         super();
-        this._nodeId = nodeId;
-        this._persistentStorage = persistentStorage;
-        this._communicationMesh = communicationMesh;
-        this._table = {}; 
+        this._state = Object.assign({}, state);
     }
-    async start () {
-        // Notice generally we may store only "our own" data 
-        // Consequences: this requies less storage, but this also increases time
-        // required for this node to be consistent: need to wait for updates from all nodes in cluster
-        // Seems, that better to store all 
-        this._table = await this._persistentStorage.loadAll();
-        this._onChange = this._handleUpdate.bind(this);
-        this._communicationMesh.on('change', this._onChange);
+
+    increment (id, count) {
+        this._state[id] = this._state[id] || 0;
+        this._state[id] += count;
+        this.emit('change', this.getSnapshot()); 
     }
-    async stop () {
-        if (this._onChange) {
-            this._communicationMesh.removeListener('change', this._onChange);
-            this._onChange = null;
+
+    merge (other) {
+        if (!(other instanceof this.constructor)) {
+            other = new this.constructor(other); 
+        }
+        let changed = false;
+        this._state = Object.keys(this._state).concat(Object.keys(other._state)).reduce((newState, key) => {
+            const myValue = this._state[key] || 0;
+            const otherValue = other._state[key] || 0;
+            newState[key] = Math.max(myValue, otherValue);
+            changed = myValue !== newState[key];
+            return newState;
+        }, {});
+        if (changed) {
+            this.emit('change', this.getSnapshot()); 
         }
     }
-    getNodeId() {
-        return  this._nodeId;
+    queryValue () {
+        return Object.values(this._state).reduce((sum, val) => sum + val, 0);
     }
+    getSnapshot() {
+        // To protect myself from changes this._state by reference
+        return Object.assign({}, this._state);
+    }
+}
 
-    add (value) {
-        this._table[this._nodeId] = this._table[this._nodeId] || 0;
-        this._table[this._nodeId] += value;
-        this._broadcast();
-        console.log('emit change', this.get());
-        this.emit('change', this.get());
-    }
-
-    get () {
-        return Object.values(this._table).reduce((sum, perNode) => sum + perNode, 0); 
-    }
-
-    _handleUpdate (nodeId, value) {
-        if (nodeId == this._nodeId) {
-            return;
-        }
-        this._table[nodeId] = this._table[nodeId] || 0;
-        if (value < this._table[nodeId]) {
-            // FIXME log that some broken message was sent
-            return;
-        }
-        this._table[nodeId] = value;
-        this.emit('change', this.get());
-    }
-
-    async _broadcast () {
-        await this._communicationMesh.broadcast(this._nodeId, this._table[this._nodeId] || 0);
-    }
-};
 module.exports = CRDTCounter;
-

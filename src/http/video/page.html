@@ -3,25 +3,8 @@
         <title>Video hosting with CRDT counter</title>
     </head>
     <body>
-        <script type="text/javascript">
-            window.onload = () => {
-                const wsServerUrl = Object.assign(
-                    new URL(window.location),
-                    {
-                        protocol: 'ws://'
-                    }
-                ).toString();
-                const wsClient = new WebSocket(wsServerUrl);
-                const counterNode = document.querySelectorAll('.info__counter')[0];
-                wsClient.onmessage = (msg) => {
-                    const value = JSON.parse(msg.data); 
-                    counterNode.textContent =  value.count;
-                }
-            }
-        </script> 
-        <div class="info">
-            <div class="info__node">{{nodeId}}</div>
-            <div class="info__counter">{{counterValue}}</div>
-        </div>
+        <script type="text/javascript">{{JS}}</script> 
+        <div class="snapshot" data-snapshot="{{snapshot}}"></div>
+        <div class="info" data-snapshot="{{snapshot}}"></div>
     </body>
 </html>

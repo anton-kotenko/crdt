@@ -1,15 +1,15 @@
 const EventEmitter = require('events');
-// FIXME  jsdoc about events
+// FIXME jsdoc, fill stub methods
 class NodesCommunicationMesh extends EventEmitter {
     constructor (clusterURI) {
-        super();    
-    } 
+        super();
+    }
     async start () {
     }
     async stop () {
     }
     async broadcast(data) {
-        // FIXME implement broadcasting 
+        this.emit('change', data);
     }
 }
 module.exports = NodesCommunicationMesh;
