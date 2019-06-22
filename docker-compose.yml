@@ -8,6 +8,9 @@ services:
             - "1234"
         environment:
             NAME: "counter1"
+            AMQP_URI: "amqp://rabbitmq:5672"
+        depends_on:
+            - "rabbitmq"
     counter2:
         build: .
         ports:
@@ -16,6 +19,9 @@ services:
             - "1234"
         environment:
             NAME: "counter2"
+            AMQP_URI: "amqp://rabbitmq:5672"
+        depends_on:
+            - "rabbitmq"
     counter3:
         build: .
         ports:
@@ -24,8 +30,21 @@ services:
             - "1234"
         environment:
             NAME: "counter3"
+            AMQP_URI: "amqp://rabbitmq:5672"
+        depends_on:
+            - "rabbitmq"
     balancer:
         build:
             context: ./balancer
         ports:
             - "1234:8000"
+        depends_on:
+            - "counter1"
+            - "counter2"
+            - "counter3"
+    rabbitmq:
+        image: "rabbitmq:3.7-management-alpine"
+        expose: 
+            - "5672"
+        ports:
+            - "15673:15672"

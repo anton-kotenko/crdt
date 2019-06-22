@@ -12,6 +12,7 @@ nconf.defaults(DEFAULTS);
 nconf.required([
     'LISTEN_PORT',
     'NAME',
-    'LOG_LEVEL'
+    'LOG_LEVEL',
+    'AMQP_URI'
 ]);
 module.exports = nconf;
