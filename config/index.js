@@ -8,6 +8,6 @@ nconf.env();
 nconf.file(path.resolve(__dirname, `${ENVIRONMENT}.json`));
 nconf.defaults(DEFAULTS);
 nconf.required([
-    'LISTEN_PORT',
+    'LISTEN_PORT'
 ]);
 module.exports = nconf;
