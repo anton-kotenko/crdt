@@ -169,38 +169,43 @@ So to make sure that counter won't go down after page reload it's better to have
 
 ### Run && Build
 Whole complex consists from several parts:
-1. nginx-based http balancer in front of `video&counter` services
+1. nginx-based http `balancer` in front of `video&counter` services
 2. Set of `video&counter` services
-3. rabbitmq server to provide communication layer between instances.
-4. redis server to provide persistency layer for `video&counter` services
+3. `rabbitmq` server to provide communication layer between instances.
+4. `redis` server to provide persistency layer for `video&counter` services
 
 #### Docker-Compose
-It may be started with docker-compose. In this case 3 instances of video&counter services, nginx-based balancer and rabbitmq server.
+It may be started with docker-compose. In this case 3 instances of `video&counter` services, nginx-based `balancer`, `rabbitmq` server and `redis` servers are started.
 
-`video&counter` services are accessible at 1231, 1232 and 1233 ports
-or through balancer at 1234 port (balancer forwards traffic to arbitrary instance of `video&counter` service according to it's implementation)
+All services are accessible on `localhost` or `127.0.0.1` at ports described below:
+1. `video&counter` services are accessible directly at `1231`, `1232` and `1233` ports (first, second and third nodes respectively)
+2. `video&counter` services are accessible through balancer at `1234` port (balancer forwards traffic to arbitrary instance of `video&counter` service according to it's own implementation)
 
-Rabbitmq admin page is accessible on 15673 port (non-standart port, to avoid collision with possible rabbitmq already running at machine)
+3.`Rabbitmq` admin page is accessible on `15673` port for debugging purposes (non-standart port, to avoid collision with possible rabbitmq already running at machine)
 
-Redis is exposed to localhost at 6378 port (non-standart, to avoid collision with redis, if started locally)
+4. `Redis` is accessible at 6378 port for debugging purposes (non-standart, to avoid collision with redis, if started locally)
 
+##### Start whole application
 ```sh 
 docker-compose build
 docker-compose up
 ```
 Typically whose system start may consume up to 15-20 seconds.
 
-CTRL+C to stop.
+##### Stop whole application
+`CTRL+C` to stop.
 and to clean-out 
 
 ```sh
 docker-compose down
 ```
-Notice: persistent storage and rabbitmq queues are cleand only after `docker-compose down`. CTRL+C does not change nothing
+**Notice**: persistent storage and rabbitmq queues are cleand only after `docker-compose down`. CTRL+C does not change nothing
 
-It's possible to start/stop `video&counter` service containers with docker (to see how it works)
-example:
-List containers
+##### Starts/stops `video&counter` service
+It's possible to start/stop `video&counter` service containers with docker (to see whole system  handle this).
+
+**Example**:
+List containers running in docker
 ```sh
 docker ps
 ```
@@ -211,11 +216,11 @@ cca5ea073da9        test_counter3                    "docker-entrypoint.s…"   
 4d6b7941951c        test_counter2                    "docker-entrypoint.s…"   13 seconds ago      Up 9 seconds        0.0.0.0:1232->1234/tcp                                                    test_counter2_1
 14df47abf16b        test_counter1                    "docker-entrypoint.s…"   13 seconds ago      Up 10 seconds       0.0.0.0:1231->1234/tcp                                                    test_counter1_1
 eaba83000a33        rabbitmq:3.7-management-alpine   "docker-entrypoint.s…"   27 minutes ago      Up 12 seconds       4369/tcp, 5671-5672/tcp, 15671/tcp, 25672/tcp, 0.0.0.0:15673->15672/tcp   test_rabbitmq_1
-
 ```
+
 Find one or more containers with image named test_counterXXX, take it's container id, and use `docker stop` or `docker start` commands
 
-Example, let's stop third `video&counter` service. According table it's id is cca5ea073da9. So:
+**Example**: let's stop third `video&counter` service. According table it's id is `cca5ea073da9`. So:
 
 stop:
 ```sh
@@ -227,24 +232,31 @@ start it again:
 docker start cca5ea073da9
 ```
 
-When container is stopped, balancer will require some time to understand and forward request to other containers.
-After container started after downtime, it also may take some time for balancer to find that container is up and running again
+**Notice**: When container is stopped, balancer will require some time to understand and forward request to other containers. After container is started after downtime, it also may take some time for balancer to find that container is up and running again
 
 #### Docker
 services may be build with docker one-by-one
+##### `video&counter`
 ```sh
 cd services/counter
 docker build -t counter:latest .
 docker run -it -p 1234:1234 counter:latest
 ```
-Notice `video&counter` service requires rabbitmq url to known where to connect (environment variable AMQP_URI)
+**Notice**: `video&counter` service requires rabbitmq url and redis url to known where to connect (environment variables AMQP_URI and REDIS_URI).
+Servce may be started locally with 
+```sh
+cd services/counter
+DEV_MODE="true" AMQP_URI=amqp://localhost:5672/ REDIS_URI=redis://localhost:6379 npm start
+```
+But don't forget to set proper `AMQP_URI` and `REDIS_URI`
 
+##### `balancer`
 ```sh
 cd balancer
 docker build -t balancer:latest .
 docker run -it -p 80:1234 balancer:latest
 ```
-Notice balancer is configured specially for docker-compose based run. For other installation edit `upstream` section
+**Notice**: balancer is configured specially for docker-compose based run. For other installation edit `upstream` section
 in nginx configuration (services/balancer/nginx.conf)
 
 
