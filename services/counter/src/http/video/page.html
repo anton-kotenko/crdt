@@ -1,11 +1,17 @@
 <html>
     <head>
         <title>Video hosting with CRDT counter</title>
+        <style>
+            {{CSS}}
+        </style>
         <script type="text/javascript">
             {{JS}}
         </script> 
     </head>
     <body>
+        <div class="video__wrapper">
+            <div class="video"><span class="video__label">Here should be video</span></div>
+        </div>
         <div class="root" data-snapshot="{{snapshot}}" data-node={{nodeId}}></div>
     </body>
 </html>

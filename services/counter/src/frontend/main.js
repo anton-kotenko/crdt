@@ -1,11 +1,11 @@
 const assert = require('assert');
 const React = require('react');
 const ReactDom = require('react-dom');
-const CRDTCounterServiceBase = require('../../lib/CRDTCounterServiceBase.js');
-const PersistentStorageInterface = require('../../lib/PersistentStorageInterface.js');
-const CommunicationMeshInterface = require('../../lib/CommunicationMeshInterface.js');
+const CRDTCounterServiceBase = require('../lib/CRDTCounterServiceBase.js');
+const PersistentStorageInterface = require('../lib/PersistentStorageInterface.js');
+const CommunicationMeshInterface = require('../lib/CommunicationMeshInterface.js');
 
-class UI extends React.Component {
+class CounterUI extends React.Component {
     constructor (props) {
         super(props);
         this.props.counter.on('change', () => {
@@ -14,16 +14,30 @@ class UI extends React.Component {
         this.state = {
             count: this.props.counter.queryValue(),
             snapshot: this.props.counter.getSnapshot(),
-            nodeId: this.props.nodeId
+            nodeId: this.props.nodeId,
+            debugVisible: false
         };
     }
     render () {
-        return (<div className="ui">
-            <div className="ui__node-id">{this.state.nodeId}</div>
-            <div className="ui__count">{this.state.count}</div>
-            <div className="ui__details">{JSON.stringify(this.state.snapshot, null, 4)}</div>
-
+        return (<div className="counter">
+            <div className="counter__node-id">Served by: {this.state.nodeId}</div>
+            <div className="counter__count">Total Requests: {this.state.count}</div>
+            <button className="counter__debug-button" onClick={() => this._toggleDebug()}>
+            {this.state.debugVisible ? 'Hide' : 'Show'} debug
+            </button>
+            {this.renderDebugInfo(this.state.snapshot, this.state.debugVisible)}
         </div>);
+    }
+    renderDebugInfo (snapshot, visible) {
+        return (<table className={`counter__debug_visible_${visible}`}><tbody>
+            {Object.entries(snapshot).map(([nodeId, count]) => (<tr key={nodeId}>
+                <td className="counter__debug-node">{nodeId}</td>
+                <td className="counter__debug-node-count">{count}</td>
+            </tr>))}
+        </tbody></table>);
+    }
+    _toggleDebug () {
+        this.setState(Object.assign({}, this.state, { debugVisible: !this.state.debugVisible }));
     }
     _syncFromCounter (counter) {
         this.setState(Object.assign({}, this.state, {
@@ -70,19 +84,9 @@ class FrontendPersistentStorage extends PersistentStorageInterface {
     }
     async loadAll () {
         return this._initialState || {};
-        const value = this._initialState; // localStorage.getItem('counter');
-        if (!value) {
-            return {};
-        }
-        try {
-            return JSON.parse(value);
-        } catch (e) {
-            // just ignore error: local storage contains trash
-            return {};
-        }
     }
     async save (snapshot) {
-        localStorage.setItem('counter', JSON.stringify(snapshot));
+        // intentionally left blank
     }
 }
 
@@ -93,12 +97,10 @@ window.onload = async () => {
     const rootNode = document.querySelectorAll('div.root')[0];
     const nodeId = rootNode.dataset.node;
     const snapshot = JSON.parse(decodeURIComponent(rootNode.dataset.snapshot));
-    console.log('snapshot', snapshot);
     const communicationMesh = new FrontendCommunicationMesh();
     const storage = new FrontendPersistentStorage(snapshot);
     const counterService = new FrontendCounterService(nodeId, communicationMesh, storage);
     await counterService.start();
     await communicationMesh.start();
-    console.log(JSON.stringify(counterService.getCounter().getSnapshot()));
-    window.r = ReactDom.render(<UI counter={counterService.getCounter()} nodeId={nodeId} />, rootNode);
+    ReactDom.render(<CounterUI counter={counterService.getCounter()} nodeId={nodeId} />, rootNode);
 };

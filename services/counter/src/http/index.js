@@ -17,7 +17,7 @@ class HttpServer {
     async start () {
         assert(!this._server, 'http server is already started');
         this._app = express();
-        this._app.use('/healthcheck', healthcheck);
+        this._app.use('/healthcheck', healthcheck(this._config));
         this._app.use('/', video(this._counterService));
 
         this._server = http.createServer(this._app);

@@ -1,9 +1,8 @@
-
-const Logger = require('./logger.js');
+const Logger = require('./services/logger.js');
 const HttpServer = require('./http');
-const CRDTCounterService = require('./CRDTCounterService.js');
-const NodesCommunicationMesh = require('./NodesCommunicationMesh');
-const PersistentStorage = require('./PersistentStorage.js');
+const CRDTCounterService = require('./services/CRDTCounterService.js');
+const NodesCommunicationMesh = require('./services/NodesCommunicationMesh');
+const PersistentStorage = require('./services/PersistentStorage.js');
 
 class Application {
     constructor () {
@@ -17,7 +16,6 @@ class Application {
             this._communicationMesh,
             this._persistentStorage
         );
-
     }
     async start () {
         this._logger.info('Going to start');

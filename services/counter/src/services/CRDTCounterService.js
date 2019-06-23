@@ -22,7 +22,7 @@ class CRDTCounterService extends CRDTCounterServiceBase {
 
     async _handleCounterChange (counterSnapshot) {
         await CRDTCounterServiceBase.prototype._handleCounterChange.call(this, counterSnapshot);
-        await this._persistentStorage.save(counterSnapshot);
+        await this._communicationMesh.broadcast(this._counter.getSnapshot());
     }
 
     _runSyncLoop () {

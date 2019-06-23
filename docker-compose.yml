@@ -1,7 +1,8 @@
 version: '3'
 services:
     counter1:
-        build: .
+        build:
+            context: services/counter
         ports:
             - "1231:1234"
         expose:
@@ -12,7 +13,8 @@ services:
         depends_on:
             - "rabbitmq"
     counter2:
-        build: .
+        build: 
+            context: services/counter
         ports:
             - "1232:1234"
         expose:
@@ -23,7 +25,8 @@ services:
         depends_on:
             - "rabbitmq"
     counter3:
-        build: .
+        build: 
+            context: services/counter
         ports:
             - "1233:1234"
         expose:
@@ -35,7 +38,7 @@ services:
             - "rabbitmq"
     balancer:
         build:
-            context: ./balancer
+            context: services/balancer
         ports:
             - "1234:8000"
         depends_on:

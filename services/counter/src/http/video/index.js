@@ -7,11 +7,11 @@ const { Router } = require('express');
 // two positive features:
 // 1. as easy as possible.
 // 2. refreshes code at page reload.
-async function loadFrontendSources () {
+async function loadFrontendJS () {
     const b = browserify({});
     return new Promise((resolve, reject) => {
         let buf = Buffer.alloc(0);
-        b.transform('babelify', {presets: ['@babel/react']});
+        b.transform('babelify', { presets: ['@babel/react'] });
         b.add(path.join(__dirname, '../../frontend/main.js'));
         b.bundle()
             .on('end', () => resolve(buf))
@@ -19,20 +19,24 @@ async function loadFrontendSources () {
             .on('data', chunk => (buf = Buffer.concat([buf, chunk])));
     });
 }
+async function loadFrontendCSS () {
+    return fs.readFileSync(path.join(__dirname, '../../frontend/main.css'));
+}
 
 module.exports = function (counterService, config) {
     const router = Router();
     router.get('/', async function (req, res) {
         counterService.increment(1);
-        // TODO probably add current's node port
-        const js = await loadFrontendSources();
+        const js = await loadFrontendJS();
+        const css = await loadFrontendCSS();
         let content = fs.readFileSync(path.join(__dirname, 'page.html'))
             .toString('utf8')
-            // FIXME dirty private property. Dirty to use encodeURIcomponent instead of proper encoding
-            .replace('{{snapshot}}', encodeURIComponent(JSON.stringify(counterService._counter.getSnapshot())))
+            // FIXME Dirty to use encodeURIcomponent instead of proper encoding
+            .replace('{{snapshot}}', encodeURIComponent(JSON.stringify(counterService.getCounter().getSnapshot())))
             .replace(/\{\{nodeId\}\}/g, counterService.getNodeId())
-            // NOTICE $ in replacement has special meaning. avoid this
-            .replace('{{JS}}', () => '\n' + js.toString('utf8') + '\n');
+            // NOTICE $ in replacement has special meaning and js contains $ symbol. avoid this in tricky way
+            .replace('{{JS}}', () => js.toString('utf8'))
+            .replace('{{CSS}}', () => css.toString('utf8'));
 
         res.status = 200;
         res.set('Content-Type', 'text/html');
