@@ -43,12 +43,12 @@ module.exports = function (counterService, config) {
         } else if (config.get('DEV_MODE')) {
             content = await buildPage();
         }
+        counterService.increment(1);
         const page = content
             // FIXME Dirty to use encodeURIcomponent instead of proper encoding
             .replace('{{snapshot}}', encodeURIComponent(JSON.stringify(counterService.getCounter().getSnapshot())))
             .replace(/\{\{nodeId\}\}/g, counterService.getNodeId());
 
-        counterService.increment(1);
         res.status = 200;
         res.set('Content-Type', 'text/html');
         res.end(page);

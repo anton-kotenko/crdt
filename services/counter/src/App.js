@@ -10,7 +10,7 @@ class Application {
         this._nodeId = this._config.get('NAME');
         this._logger = Logger(this._config);
         this._communicationMesh = new NodesCommunicationMesh(this._config.get('AMQP_URI'), this._logger);
-        this._persistentStorage = new PersistentStorage();
+        this._persistentStorage = new PersistentStorage(this._nodeId, this._config.get('REDIS_URI'));
         this._counterService = new CRDTCounterService(
             this._nodeId,
             this._communicationMesh,

@@ -64,6 +64,10 @@ class FrontendCommunicationMesh extends CommunicationMeshInterface {
     }
     async start () {
         assert(!this._wsClient, 'communication mesh already started');
+        // TODO errors should be handled.
+        // e.g. server is restarted: ws client should reconnect
+        // and try reconnecting periodically
+        // until success or until page is closed
         this._wsClient = new WebSocket(this._wsServerUrl);
         this._wsClient.onmessage = (msg) => {
             try {
@@ -96,6 +100,8 @@ class FrontendPersistentStorage extends PersistentStorageInterface {
 }
 
 class FrontendCounterService extends CRDTCounterServiceBase {
+    // Intentionally left blank. Space for frontend specific code
+    // TODO: there is no need in in. Maybe use CRDTCounterServiceBase directly???
 }
 
 window.onload = async () => {

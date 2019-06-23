@@ -10,8 +10,10 @@ services:
         environment:
             NAME: "counter1"
             AMQP_URI: "amqp://rabbitmq:5672"
+            REDIS_URI: "amqp://redis:6379"
         depends_on:
             - "rabbitmq"
+            - "redis"
     counter2:
         build: 
             context: services/counter
@@ -22,8 +24,10 @@ services:
         environment:
             NAME: "counter2"
             AMQP_URI: "amqp://rabbitmq:5672"
+            REDIS_URI: "amqp://redis:6379"
         depends_on:
             - "rabbitmq"
+            - "redis"
     counter3:
         build: 
             context: services/counter
@@ -34,8 +38,10 @@ services:
         environment:
             NAME: "counter3"
             AMQP_URI: "amqp://rabbitmq:5672"
+            REDIS_URI: "amqp://redis:6379"
         depends_on:
             - "rabbitmq"
+            - "redis"
     balancer:
         build:
             context: services/balancer
@@ -51,3 +57,9 @@ services:
             - "5672"
         ports:
             - "15673:15672"
+    redis:
+        image: "redis:5.0-alpine"
+        expose:
+            - "6379"
+        ports:
+            - "6378:6379"

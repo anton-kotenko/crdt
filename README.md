@@ -91,7 +91,7 @@ After some time value will be redistributed to other nodes and they will be able
 ##### Unrecoverable node crash
 Node just crashed. Nothing can be done.
 1. One of other nodes will have least outdated value. During some time it will be distributed to other nodes, and they will be able to answer properly to read queries.
-2. There is risk that node crashed before it was able to send last updated. But nothing possible to do with this (Actually possible, but this requires to implement smth like write ahead log in ACID databases to provide reliability). Algorithm provides us best possible result.
+2. There is risk that node crashed before it was able to send last updated. But nothing possible to do with this (Actually possible, but this requires to implement something like write ahead log in ACID databases to provide reliability). Algorithm provides us best possible result.
 ##### Split brain
 Due to network error parts of cluster have no connectivity
 In this case cluster "breaks" into subclusters. Subcluster will contain outdated valued from other subcluster but will work and accept updates. But read queries won't be aware about changes in other subcluster.
@@ -105,9 +105,11 @@ Node restart is sequential node removal + node addition. Both procedures was des
 
 ### Persistency layer
 Generally, if cluster is large enough, it's possible even not to use persistency layer. Anyway node's data exists at other nodes and can be restored out from there during `merge` operation. This is quite risky solution, but probably usable sometimes when performance is more important then correctness/durability.
-Otheriwize some additional persistent storage is required. Depending on our requirements  (performance/relability) we may use different strategies for processing update's
+Otherwise some additional persistent storage is required. Depending on our requirements  (performance/relability) we may use different strategies for processing update's
 1. respond to sender only when data is really persisted. 
-2. respond just after message was recived, and persist data later.
+2. respond just after message was received, and persist data later.
+
+For current project it was chosen: does not bother with ACID properties. As storage engine redis was chosen: lightweight, simple and fast.
 
 
 ### Frontend part
@@ -115,7 +117,7 @@ Frontend view of counter may be considered as one more passive (does not accept 
 To deliver updated to frontend websockets may be used (or any alternative technology. e.g. (server-side-events)[https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events]).
 
 Frontend connects to any node in cluster (there will be balancer in front of cluster so any node may handle this query). CRDT counter code at frontend will guarantee that event if we got outdated message
-from outdated machine, nohing bad will happen.
+from outdated machine, nothing bad will happen.
 
 So requirement: CRDT-counter code should work at both frontend/backend.
 
@@ -131,13 +133,17 @@ Whole complex consists from several parts:
 1. nginx-based http balancer in front of `video&counter` services
 2. Set of `video&counter` services
 3. rabbitmq server to provide communication layer between instances.
+4. redis server to provide persistency layer for `video&counter` services
 
 #### Docker-Compose
 It may be started with docker-compose. In this case 3 instances of video&counter services, nginx-based balancer and rabbitmq server.
 
 `video&counter` services are accessible at 1231, 1232 and 1233 ports
 or through balancer at 1234 port (balancer forwards traffic to arbitrary instance of `video&counter` service according to it's implementation)
+
 Rabbitmq admin page is accessible on 15673 port (non-standart port, to avoid collision with possible rabbitmq already running at machine)
+
+Redis is exposed to localhost at 6378 port (non-standart, to avoid collision with redis, if started locally)
 
 ```sh 
 docker-compose build
@@ -146,11 +152,12 @@ docker-compose up
 Typically whose system start may consume up to 15-20 seconds.
 
 CTRL+C to stop.
-and to clean-out
+and to clean-out 
 
 ```sh
 docker-compose down
 ```
+Notice: persistent storage and rabbitmq queues are cleand only after `docker-compose down`. CTRL+C does not change nothing
 
 It's possible to start/stop `video&counter` service containers with docker (to see how it works)
 example:

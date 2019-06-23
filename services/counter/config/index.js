@@ -13,6 +13,7 @@ nconf.required([
     'LISTEN_PORT',
     'NAME',
     'LOG_LEVEL',
-    'AMQP_URI'
+    'AMQP_URI',
+    'REDIS_URI'
 ]);
 module.exports = nconf;

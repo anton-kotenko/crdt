@@ -17,6 +17,7 @@
     "browserify": "16.2.3",
     "bunyan": "1.8.12",
     "express": "4.17.1",
+    "ioredis": "4.10.0",
     "lodash": "4.17.11",
     "nconf": "0.10.0",
     "react": "16.8.6",
