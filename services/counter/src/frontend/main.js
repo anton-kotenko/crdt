@@ -29,12 +29,17 @@ class CounterUI extends React.Component {
         </div>);
     }
     renderDebugInfo (snapshot, visible) {
-        return (<table className={`counter__debug_visible_${visible}`}><tbody>
-            {Object.entries(snapshot).map(([nodeId, count]) => (<tr key={nodeId}>
-                <td className="counter__debug-node">{nodeId}</td>
-                <td className="counter__debug-node-count">{count}</td>
-            </tr>))}
-        </tbody></table>);
+        return (<table className={`counter__debug counter__debug_visible_${visible}`}>
+                <thead>
+                    <tr><td>Machine name</td><td>Served Requests</td></tr>
+                </thead>
+                <tbody>
+                {Object.entries(snapshot).map(([nodeId, count]) => (<tr key={nodeId}>
+                    <td className="counter__debug-node">{nodeId}</td>
+                    <td className="counter__debug-node-count">{count}</td>
+                </tr>))}
+                </tbody>
+            </table>);
     }
     _toggleDebug () {
         this.setState(Object.assign({}, this.state, { debugVisible: !this.state.debugVisible }));
