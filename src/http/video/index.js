@@ -8,10 +8,11 @@ const { Router } = require('express');
 // 1. as easy as possible.
 // 2. refreshes code at page reload.
 async function loadFrontendSources () {
-    const b = browserify();
-    b.add(path.join(__dirname, '../../frontend/main.js'));
+    const b = browserify({});
     return new Promise((resolve, reject) => {
         let buf = Buffer.alloc(0);
+        b.transform('babelify', {presets: ['@babel/react']});
+        b.add(path.join(__dirname, '../../frontend/main.js'));
         b.bundle()
             .on('end', () => resolve(buf))
             .on('error', reject)
@@ -26,11 +27,12 @@ module.exports = function (counterService, config) {
         // TODO probably add current's node port
         const js = await loadFrontendSources();
         let content = fs.readFileSync(path.join(__dirname, 'page.html'))
-            .toString()
+            .toString('utf8')
             // FIXME dirty private property. Dirty to use encodeURIcomponent instead of proper encoding
             .replace('{{snapshot}}', encodeURIComponent(JSON.stringify(counterService._counter.getSnapshot())))
             .replace(/\{\{nodeId\}\}/g, counterService.getNodeId())
-            .replace('{{JS}}', js);
+            // NOTICE $ in replacement has special meaning. avoid this
+            .replace('{{JS}}', () => '\n' + js.toString('utf8') + '\n');
 
         res.status = 200;
         res.set('Content-Type', 'text/html');

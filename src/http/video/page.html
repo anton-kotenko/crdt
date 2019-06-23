@@ -1,11 +1,11 @@
 <html>
     <head>
         <title>Video hosting with CRDT counter</title>
+        <script type="text/javascript">
+            {{JS}}
+        </script> 
     </head>
     <body>
-        <script type="text/javascript">{{JS}}</script> 
-        <div class="snapshot" data-snapshot="{{snapshot}}"></div>
-        <div class="info" data-snapshot="{{snapshot}}"></div>
-        <div class="node" data-snapshot="{{nodeId}}">{{nodeId}}</div>
+        <div class="root" data-snapshot="{{snapshot}}" data-node={{nodeId}}></div>
     </body>
 </html>

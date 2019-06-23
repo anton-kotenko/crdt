@@ -1,8 +1,8 @@
 const assert = require('assert');
-const EventEmitter = require('events');
 const amqplib = require('amqplib');
 // FIXME jsdoc
-class NodesCommunicationMesh extends EventEmitter {
+const CommunicationMeshInterface = require('../lib/CommunicationMeshInterface.js');
+class NodesCommunicationMesh extends CommunicationMeshInterface {
     constructor (amqpUri, logger) {
         super();
         this._logger = logger;
@@ -14,6 +14,7 @@ class NodesCommunicationMesh extends EventEmitter {
         this._logger.info({ amqpUri: this._amqpUri }, 'Going to connect to rabbitmq');
 
         // RABBITMQ may be not ready. (this happens in docker compose);
+        // TODO better to implement this waiting at docker-compose level.
         for (let tryCount = 50; tryCount > 0; tryCount--) {
             try {
                 this._conn = await amqplib.connect(this._amqpUri);
@@ -79,8 +80,8 @@ class NodesCommunicationMesh extends EventEmitter {
     }
 
     async broadcast (data) {
+        CommunicationMeshInterface.prototype.broadcast(data);
         await this._channel.publish(this._exchangeName, '', Buffer.from(JSON.stringify(data)));
-        this.emit('change', data);
     }
 }
 module.exports = NodesCommunicationMesh;
