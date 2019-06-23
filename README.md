@@ -150,7 +150,7 @@ But in typical case persistent storage is required. Depending on our requirement
 
 ### Frontend part
 Frontend may be considered as one more passive (does not accept write queries) node in cluster with additional UI.
-To deliver updated to frontend websockets may be used (or any alternative technology. e.g. (server-side-events)[https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events]).
+To deliver updated to frontend websockets may be used (or any alternative technology. e.g. [server-side-events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)).
 
 Frontend connects to any node in cluster (probably at production installation there would be traffic balancer in front of cluster so any node may handle this query).
 
@@ -167,14 +167,14 @@ So to make sure that counter won't go down after page reload it's better to have
 **Notice**: Frontend may become "active" node. Example: video viewer is implemented as single-page-application, and in this case increments should be processed on client side and sent to backend part of cluster. Due to universal code used both for frontend and backend it's easy to implement this feature. 
 
 
-### Run && Build
+## Run && Build
 Whole complex consists from several parts:
 1. nginx-based http `balancer` in front of `video&counter` services
 2. Set of `video&counter` services
 3. `rabbitmq` server to provide communication layer between instances.
 4. `redis` server to provide persistency layer for `video&counter` services
 
-#### Docker-Compose
+### Docker-Compose
 It may be started with docker-compose. In this case 3 instances of `video&counter` services, nginx-based `balancer`, `rabbitmq` server and `redis` servers are started.
 
 All services are accessible on `localhost` or `127.0.0.1` at ports described below:
@@ -185,14 +185,14 @@ All services are accessible on `localhost` or `127.0.0.1` at ports described bel
 
 4. `Redis` is accessible at 6378 port for debugging purposes (non-standart, to avoid collision with redis, if started locally)
 
-##### Start whole application
+#### Start whole application
 ```sh 
 docker-compose build
 docker-compose up
 ```
 Typically whose system start may consume up to 15-20 seconds.
 
-##### Stop whole application
+#### Stop whole application
 `CTRL+C` to stop.
 and to clean-out 
 
@@ -201,7 +201,7 @@ docker-compose down
 ```
 **Notice**: persistent storage and rabbitmq queues are cleand only after `docker-compose down`. CTRL+C does not change nothing
 
-##### Starts/stops `video&counter` service
+#### Starts/stops `video&counter` service
 It's possible to start/stop `video&counter` service containers with docker (to see whole system  handle this).
 
 **Example**:
@@ -234,9 +234,9 @@ docker start cca5ea073da9
 
 **Notice**: When container is stopped, balancer will require some time to understand and forward request to other containers. After container is started after downtime, it also may take some time for balancer to find that container is up and running again
 
-#### Docker
+### Docker and local start
 services may be build with docker one-by-one
-##### `video&counter`
+#### `video&counter`
 ```sh
 cd services/counter
 docker build -t counter:latest .
@@ -250,7 +250,7 @@ DEV_MODE="true" AMQP_URI=amqp://localhost:5672/ REDIS_URI=redis://localhost:6379
 ```
 But don't forget to set proper `AMQP_URI` and `REDIS_URI`
 
-##### `balancer`
+#### `balancer`
 ```sh
 cd balancer
 docker build -t balancer:latest .
