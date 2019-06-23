@@ -42,7 +42,7 @@ Cons's:
 * Every node need to know about all other nodes. Though possible to implement through some kind of service discovery (etcd/consul/zookeeper or implemented inside of application), but significant efforts is required. 
 
 #### Multicast's
-Use [Multicast](https://en.wikipedia.org/wiki/Multicast) traffic to broadcast messages to all nodes. (example: OSPF routing protocol)
+Use [Multicast](https://en.wikipedia.org/wiki/Multicast) traffic to broadcast messages to all nodes. (example: OSPF routing protocol). 
 
 Pro's:
 * Single point to connect. Easy to change cluster size: node does not need to know ip addresses of other nodes. Only multicast group ip address is required.
@@ -54,9 +54,12 @@ Cons's:
 * Not possible to run several instances of process locally for debugging purposes (all of them listens on same mulicast ip address and on same port, that is forbidden)
 
 #### Decision
-According to design goals (simplicity, but CRDT counter implemented), decision is to use some message broker. 
-In current case Rabbitmq is used, just because I have experience with it. 
-This gives possibility to avoid building own communication layer, but fulfills all requirements.
+At first draft of `Multicast's` solution was implemented (try to avoid external dependencies). But faced with all described issue, have no choice but to use some other option.
+
+Second choise is use message broker:
+This gives possibility to avoid building own communication layer, but fulfills design goals (simplicity, but CRDT counter implemented) requirements. 
+For current project Rabbitmq was chosen. Reason: just because I have experience with it. 
+
 In real super-high load installation it may be bottleneck and should be replaced with something other.
 
 ### Cluster Lifecycle.
@@ -79,30 +82,39 @@ Node addition process should be handled on two levels: Algorithmic and OPS
 2. OPS: Depending on used communication layer implementation (see above) it may be required to reconfigure other nodes in 
 cluster to know about new node
 
-Notice: Generally, in production installation, it would be good to address issue of "starting" node: e.g. make it usable to "read" queries only when it will be synchronized with other nodes.
+**Notice**: Generally, in production installation, it would be good to address issue of "starting" node: e.g. make it usable to "read" queries only when it will be synchronized with other nodes.
 
-Additional requirement: Every node should have unique identifier, otherwise system won't be able to work correctly. This may be enforced by some registry (e.g. etcd/zookeeper) or we may use some algorithm to generate identifiers that guarantees uniqueness or probability of collision is very small (e.g. [UUID/GUID]([https://en.wikipedia.org/wiki/Universally_unique_identifier]))
+**Additional requirement**: Every node should have unique identifier, otherwise system won't be able to work correctly. This may be enforced by some registry (e.g. etcd/zookeeper) or we may use some algorithm to generate identifiers that guarantees uniqueness or probability of collision is very small (e.g. [UUID/GUID]([https://en.wikipedia.org/wiki/Universally_unique_identifier]))
 
-Decision: according to design goals there is no sense in overengineering. So requirement is guaranteed manually. It's required to start all instances with unique values in `NAME` environment variable.
+**Decision**: according to design goals there is no sense in overengineering. So requirement is guaranteed manually. It's required to start all instances with unique values in `NAME` environment variable.
 It's possible to implement this using some kind of database (e.g. etcd/zookeeper), but to complicated for test implementation. 
 
 #### Node removal
 When node is removed we want to guarantee correctness of whole system and not to loose data from node that will be removed. 
 
 Let's begin with simplest possible solution and then improve it
-Solution: Just shut down node, and do not do any changes in other nodes data.
+
+**Solution**: Just shut down node, and do not do any changes in other nodes data.
+
 Pro's: 
-    the most easiest solution
+* the most easiest solution
+
 Cons's:
-    It is not correct. System is not eventutally consistent. Reason: Other node may have different counter value associated with removed node. And due to node is removed, nobody will ever synchronize them (though it's possible to solve this, if every machine will broadcast whole it's data to other nodes)
-    Our cluster will remember this machine forever, along with it's data: Excessive memory usage, though it may be not a problem for small clusters, when machines does not goes added/removed frequently
+* It is not correct. System is not eventutally consistent. Reason: different nodes may have different counter value associated with removed node. And due to node is removed, nobody will ever synchronize them 
+* Our cluster will remember this machine forever, along with it's data: Excessive memory usage, though it may be not a problem for small clusters, when machines does not goes added/removed frequently
 
-Better solution:
+**Better solution**:
 All nodes periodically sends snapshot of all theirs data (including counters associated to other nodes).
-On receive node apply "merge" procedure for every node's data (in our case "merge" means  get max of values) to received data and to it's own data.
-When node is removed, after it's data will be stabilized, some other node may increment it's data on value of removed node, and then notify all other nodes to just forget about removed node's counter.
+On receive node apply "merge" procedure for every node's data (in our case "merge" means  get max of values) to received data and to it's own data. This addresses consistency problem. This also adresses issue when on fail node loose all it's data.
 
-Let's look how described algorithm will handle 
+**Additional improvement**: in previous solution node's data says in cluster forever. It's possible to apply one more trick:
+After node's removal, one of nodes may increment it's own counter to value of removed node, and then removed node should be forgotten by all nodes alive.
+
+Cons's:
+* Increment and forget operation should be "atomic" thoughout whole cluster, and this is quite hard to implement.
+
+Let's look how described algorithm will handle different node removal cases. 
+
 ##### Manual node removal: 
 Ops team decided to remove node (e.g. for maintenance)
 1. OPS team make node not to accept new traffic (remove it from balancer, close by firewall, or notify node to stop accepting new counter change request, typically send signal (e.g. nginx uses SIGQUIT)
@@ -115,8 +127,10 @@ Node just crashed. Nothing can be done.
 2. There is risk that node crashed before it was able to send last updated. But nothing possible to do with this (Actually possible, but this requires to implement something like write ahead log in ACID databases to provide reliability). Algorithm provides us best possible result.
 ##### Split brain
 Due to network error parts of cluster have no connectivity
-In this case cluster "breaks" into subclusters. Subcluster will contain outdated valued from other subcluster but will work and accept updates. But read queries won't be aware about changes in other subcluster.
-After network issue will be solved and parts of cluster will be able to communicate, "merge" operation on counter will update data and cluster as a whole become consistent.
+
+In this case cluster "breaks" into subclusters. Subcluster will contain outdated valued from other subcluster but will work and accept updates. Read queries will return stale data from another subcluster
+
+After network issue will be solved and parts of cluster will be able to communicate, "merge" operation on counter will update data and cluster as a whole become consistent. In any case total numbers quried from any node, at any time, will only grow up durin whole `split brain` scenario.
 
 ##### Decision
 Implemented algorithm described above except of merge data from removed node into other node. 
@@ -125,28 +139,32 @@ Implemented algorithm described above except of merge data from removed node int
 Node restart is sequential node removal + node addition. Both procedures was described above and proven to be correct.
 
 ### Persistency layer
-Generally, if cluster is large enough, it's possible even not to use persistency layer. Anyway node's data exists at other nodes and can be restored out from there during `merge` operation. This is quite risky solution, but probably usable sometimes when performance is more important then correctness/durability.
-Otherwise some additional persistent storage is required. Depending on our requirements  (performance/relability) we may use different strategies for processing update's
+Generally, if cluster is large enough, it's possible even not to use persistency layer. Anyway node's data exists at other nodes and can be restored out from there during `merge` operation. This is quite risky solution, but probably usable when performance is more important then correctness/durability.
+
+But in typical case persistent storage is required. Depending on our requirements (performance/relability) we may use different strategies for processing update's 
 1. respond to sender only when data is really persisted. 
 2. respond just after message was received, and persist data later.
 
-For current project it was chosen: does not bother with ACID properties. As storage engine redis was chosen: lightweight, simple and fast.
+**Decision**: For current project it was chosen: does not bother with ACID properties. As storage engine Redis was chosen: lightweight, simple and fast.
 
 
 ### Frontend part
-Frontend view of counter may be considered as one more passive (does not accept write queries) node in CRDT cluster nodes.
+Frontend may be considered as one more passive (does not accept write queries) node in cluster with additional UI.
 To deliver updated to frontend websockets may be used (or any alternative technology. e.g. (server-side-events)[https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events]).
 
-Frontend connects to any node in cluster (there will be balancer in front of cluster so any node may handle this query). CRDT counter code at frontend will guarantee that event if we got outdated message
-from outdated machine, nothing bad will happen.
+Frontend connects to any node in cluster (probably at production installation there would be traffic balancer in front of cluster so any node may handle this query).
 
-So requirement: CRDT-counter code should work at both frontend/backend.
+In case if frontend will be just one more CRDT node, then CRDT counter code will provide non-decreasing behaviour at UI in any case, just due to how `merge` operation is implemented for CRDT grow-only counter. 
 
-Another issue to consider: after page reload, page may be loaded from "outdated" node (e.g. balancer in front of nodes may send query to any node it likes). So to make sure that counter won't go down better to have some persistency on frontend (e.g. local storage) and consider all received from backend (e.g. page reload, websocket messages) taking into account "current value" and applying those changes with `merge` operation. Notice: It happens that it is really inconvenient to debug and demonstrate whole system with this feature enabled. So it was removed from implementation. Though it may have sence in production installation.
+**Requirement**: CRDT-counter code should work at both frontend/backend.
 
-Implementation decisions: Frontend is considered as `passive` cluster node. So code was written in way, that allows code reuse both on frontend and backend.
-Notice: Frontend may become "active" node video viewer is implemented as single-page-application, and in this case increments should be processed. Due to universal code used both for frontend and backend
-it's easy to implement this requirement. 
+Another issue to consider: after page reload, page may be loaded from "outdated" node (e.g. balancer in front of nodes may send query to any node it likes).
+So to make sure that counter won't go down after page reload it's better to have some persistency on frontend (e.g. [local storage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)). All updates from backends should be applied to persistent storage value with `merge` operation.
+
+**Notice**: It happens that it is really inconvenient to debug and demonstrate whole system with this feature enabled. So it was removed from implementation. Though it may have sence in production installation.
+
+**Implementation decisions**: Frontend is considered as `passive` cluster node. So code was written in way, that allows code reuse both on frontend and backend.
+**Notice**: Frontend may become "active" node. Example: video viewer is implemented as single-page-application, and in this case increments should be processed on client side and sent to backend part of cluster. Due to universal code used both for frontend and backend it's easy to implement this feature. 
 
 
 ### Run && Build
