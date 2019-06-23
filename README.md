@@ -3,13 +3,14 @@ TODO: Need to implement simple example implementation of whole projects.
 Design goals: it should be simple enough, but show basic features how CRDT counter works.
 
 Generally it's possible to implement CRDT counter in two ways: as
-`Operation-based: commutative replicated data types, or CmRDTs`
-`State-based: convergent replicated data types, or CvRDTs`
-(see https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type)
+`Operation-based: commutative replicated data types, CmRDTs` or 
+`State-based: convergent replicated data types, CvRDTs`
+(see [CRDT](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type))
 
 Operation-based looks better in terms of performance, but it is more complex
 1. it requires order and delivery guarantees from communication layer
 2. it introduces `initial state` problem: e.g. when we add new node into cluster it contains no data. It would accept changes from other nodes, but to have correct value, it should be populated with initial values for other nodes. And this requires additional implementaion efforts.
+
 Due to this considerations and desing goals (simplicity) the choice is `State-bases`. In heavy-loaded environment, this choice may be changed.
 
 ## Design considerations
@@ -18,25 +19,42 @@ Due to this considerations and desing goals (simplicity) the choice is `State-ba
 To implement CRDT counter it's required to provide a way to communicate between all nodes in cluster.
 This requires "full-mesh" connectivity.
 Possible implementations
-1. Message bus (Rabbitmq, Kafka). 
-Pro's:
-    single point to connect. Easy to change cluster size: node doesn't need to know ip addreses of other nodes. Only broker IP is required.
-Cons's: 
-    need to install and maintan one more service.
-    single point of failure and may be bottlneck in really high loaded installations (possible to elimite: most of event brokers may be clusterized)
-2. Full mesh
-Cons's:
-    Every node need to know about all other nodes. Though possible to implement though some kind of service discovery (etcd/consul/zookeeper or implemented inside of application). 
-3. Multicast's
-Pro's:
-    Single point to connect. Easy to change cluster size: node does not need to know ip addresses of other nodes. Only multicast group ip address is required.
-Cons's:
-    Networking issues: may require efforts on networking level: installation should provide multicast delivery  to all nodes (IGMP handling should be enabled everywhere, problems with NAT's VPN's)
-    UDP only: we are not able to use TCP's order and delivery guarantess for multicast.
-    Docker does not support mulicasts: problems with orchestrations systems like Kubernetes or simply running several instances in docker locally for debugging purposes
-    Not possible to run several instances of process locally for debugging purposes (all of them listens on same mulicast ip address and on same port, that is forbidden)
 
-Decision: According to design goals (simplicity, but CRDT counter implemented), decision is to use some message broker. 
+#### Message bus (Rabbitmq, Kafka). 
+Use some already implemented message broker.
+
+Pro's:
+* single point to connect. Easy to change cluster size: node doesn't need to know ip addreses of other nodes. Only broker IP is required.
+* small efforts to implement
+
+Cons's: 
+* need to install and maintan one more service.
+* single point of failure and may be bottlneck in really high loaded installations (possible to elimite: most of event brokers may be clusterized)
+    
+#### Full mesh
+Implement own full-mesh communication software. Depending on implementation this may use anyhing begining from simple messages over TCP to some standard protocol like GRPC or something else.
+
+Pro's:
+* With proper implementation may be fast and outperform all other solutions
+* Depending on implementation may nor require any external services as dependencies
+
+Cons's:
+* Every node need to know about all other nodes. Though possible to implement through some kind of service discovery (etcd/consul/zookeeper or implemented inside of application), but significant efforts is required. 
+
+#### Multicast's
+Use [Multicast](https://en.wikipedia.org/wiki/Multicast) traffic to broadcast messages to all nodes. (example: OSPF routing protocol)
+
+Pro's:
+    * Single point to connect. Easy to change cluster size: node does not need to know ip addresses of other nodes. Only multicast group ip address is required.
+
+Cons's:
+    * Networking issues: may require efforts on networking level: installation should provide multicast traffic delivery to all nodes (IGMP handling should be enabled everywhere, problems with NAT's VPN's)
+    * UDP only: we are not able to use TCP's order and delivery guarantess for multicast.
+    * Docker does not support mulicasts: problems with orchestrations systems like Kubernetes or simply running several instances in docker locally for debugging purposes
+    * Not possible to run several instances of process locally for debugging purposes (all of them listens on same mulicast ip address and on same port, that is forbidden)
+
+#### Decision
+According to design goals (simplicity, but CRDT counter implemented), decision is to use some message broker. 
 In current case Rabbitmq is used, just because I have experience with it. 
 This gives possibility to avoid building own communication layer, but fulfills all requirements.
 In real super-high load installation it may be bottleneck and should be replaced with something other.
