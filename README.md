@@ -23,7 +23,7 @@ Pro's:
     single point to connect. Easy to change cluster size: node doesn't need to know ip addreses of other nodes. Only broker IP is required.
 Cons's: 
     need to install and maintan one more service.
-    single point of failure (possible to elimite: most of event brokers may be clusterized)
+    single point of failure and may be bottlneck in really high loaded installations (possible to elimite: most of event brokers may be clusterized)
 2. Full mesh
 Cons's:
     Every node need to know about all other nodes. Though possible to implement though some kind of service discovery (etcd/consul/zookeeper or implemented inside of application). 
@@ -35,6 +35,11 @@ Cons's:
     UDP only: we are not able to use TCP's order and delivery guarantess for multicast.
     Docker does not support mulicasts: problems with orchestrations systems like Kubernetes or simply running several instances in docker locally for debugging purposes
     Not possible to run several instances of process locally for debugging purposes (all of them listens on same mulicast ip address and on same port, that is forbidden)
+
+Decision: According to design goals (simplicity, but CRDT counter implemented), decision is to use some message broker. 
+In current case Rabbitmq is used, just because I have experience with it. 
+This gives possibility to avoid building own communication layer, but fulfills all requirements.
+In real super-high load installation it may be bottleneck and should be replaced with something other.
 
 ### Cluster Lifecycle.
 Cluster lifecycle consists from
@@ -56,6 +61,9 @@ Node addition process should be handled on two levels: Algorithmic and OPS
 Generally, in production installation, it would be good to address issue of "starting" node: e.g. make it usable to "read" queries only when it will be synchronized with other nodes.
 2. OPS: Depending on used communication layer implementation (see above) it may be required to reconfigure other nodes in cluster to know about new node
 Additional requirement: Every node should have unique identifier, otherwise system won't be able to work correctly. This may be enforced by some registry (e.g. etcd/zookeeper) or we may use some algorithm to generate identifiers that guarantees uniqueness or probability of collision is very small (e.g. (UUID)[https://en.wikipedia.org/wiki/Universally_unique_identifier])
+
+Decision: according to design goals there is no sense in overengineering. So requirement is guaranteed manually. It's required to start all instances with unique values in `NAME` environment variable.
+It's possuble to implement this using some kind of database (e.g. etcd/zookeeper), but to complicated for test implementation. 
 
 #### Node removal
 When node is removed we want to guarantee correctness of whole system and not to loose data from node that will be removed. 
@@ -89,6 +97,9 @@ Due to network error parts of cluster have no connectivity
 In this case cluster "breaks" into subclusters. Subcluster will contain outdated valued from other subcluster but will work and accept updates. But read queries won't be aware about changes in other subcluster.
 After network issue will be solved and parts of cluster will be able to communicate, "merge" operation on counter will update data and cluster as a whole become consistent.
 
+##### Decision
+Implemented algorithm described above except of merge data from removed node into other node. 
+
 #### Node restart
 Node restart is sequential node removal + node addition. Both procedures was described above and proven to be correct.
 
@@ -102,21 +113,93 @@ Otheriwize some additional persistent storage is required. Depending on our requ
 ### Frontend part
 Frontend view of counter may be considered as one more passive (does not accept write queries) node in CRDT cluster nodes.
 To deliver updated to frontend websockets may be used (or any alternative technology. e.g. (server-side-events)[https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events]).
+
 Frontend connects to any node in cluster (there will be balancer in front of cluster so any node may handle this query). CRDT counter code at frontend will guarantee that event if we got outdated message
 from outdated machine, nohing bad will happen.
-So requirement: CRDT-counter code should work at both frontend/backend. 
-Another issue to consider: after page reload, page may be loaded from "outdated" node (e.g. balancer in front of nodes may send query to any node it likes). So to make sure that counter won't go down better to have some persistency on frontend (e.g. local storage)
-and consider all received from backend (e.g. page reload, websocket messages) takin into account "current value" and applying those changes with `merge` operation
 
-FIXME it seeems to be quite inconvenient to debug and play with local stroage usage. need to decide what to do
+So requirement: CRDT-counter code should work at both frontend/backend.
+
+Another issue to consider: after page reload, page may be loaded from "outdated" node (e.g. balancer in front of nodes may send query to any node it likes). So to make sure that counter won't go down better to have some persistency on frontend (e.g. local storage) and consider all received from backend (e.g. page reload, websocket messages) taking into account "current value" and applying those changes with `merge` operation. Notice: It happens that it is really inconvenient to debug and demonstrate whole system with this feature enabled. So it was removed from implementation. Though it may have sence in production installation.
+
+Implementation decisions: Frontend is considered as `passive` cluster node. So code was written in way, that allows code reuse both on frontend and backend.
+Notice: Frontend may become "active" node video viewer is implemented as single-page-application, and in this case increments should be processed. Due to universal code used both for frontend and backend
+it's easy to implement this requirement. 
+
 
 ### Run && Build
+Whole complex consists from several parts:
+1. nginx-based http balancer in front of `video&counter` services
+2. Set of `video&counter` services
+3. rabbitmq server to provide communication layer between instances.
+
+#### Docker-Compose
+It may be started with docker-compose. In this case 3 instances of video&counter services, nginx-based balancer and rabbitmq server.
+
+`video&counter` services are accessible at 1231, 1232 and 1233 ports
+or through balancer at 1234 port (balancer forwards traffic to arbitrary instance of `video&counter` service according to it's implementation)
+Rabbitmq admin page is accessible on 15673 port (non-standart port, to avoid collision with possible rabbitmq already running at machine)
+
+```sh 
+docker-compose build
+docker-compose up
+```
+Typically whose system start may consume up to 15-20 seconds.
+
+CTRL+C to stop.
+and to clean-out
+
+```sh
+docker-compose down
+```
+
+It's possible to start/stop `video&counter` service containers with docker (to see how it works)
+example:
+List containers
+```sh
+docker ps
+```
+```
+CONTAINER ID        IMAGE                            COMMAND                  CREATED             STATUS              PORTS                                                                     NAMES
+18941bfcdcba        test_balancer                    "nginx -g 'daemon of…"   8 seconds ago       Up 6 seconds        80/tcp, 0.0.0.0:1234->8000/tcp                                            test_balancer_1
+cca5ea073da9        test_counter3                    "docker-entrypoint.s…"   13 seconds ago      Up 8 seconds        0.0.0.0:1233->1234/tcp                                                    test_counter3_1
+4d6b7941951c        test_counter2                    "docker-entrypoint.s…"   13 seconds ago      Up 9 seconds        0.0.0.0:1232->1234/tcp                                                    test_counter2_1
+14df47abf16b        test_counter1                    "docker-entrypoint.s…"   13 seconds ago      Up 10 seconds       0.0.0.0:1231->1234/tcp                                                    test_counter1_1
+eaba83000a33        rabbitmq:3.7-management-alpine   "docker-entrypoint.s…"   27 minutes ago      Up 12 seconds       4369/tcp, 5671-5672/tcp, 15671/tcp, 25672/tcp, 0.0.0.0:15673->15672/tcp   test_rabbitmq_1
+
+```
+Find one or more containers with image named test_counterXXX, take it's container id, and use `docker stop` or `docker start` commands
+
+Example, let's stop third `video&counter` service. According table it's id is cca5ea073da9. So:
+
+stop:
+```sh
+docker stop cca5ea073da9
+```
+
+start it again:
+```sh
+docker start cca5ea073da9
+```
+
+When container is stopped, balancer will require some time to understand and forward request to other containers.
+After container started after downtime, it also may take some time for balancer to find that container is up and running again
+
+#### Docker
+services may be build with docker one-by-one
+```sh
+cd services/counter
 docker build -t counter:latest .
 docker run -it -p 1234:1234 counter:latest
+```
+Notice `video&counter` service requires rabbitmq url to known where to connect (environment variable AMQP_URI)
 
+```sh
 cd balancer
 docker build -t balancer:latest .
 docker run -it -p 80:1234 balancer:latest
+```
+Notice balancer is configured specially for docker-compose based run. For other installation edit `upstream` section
+in nginx configuration (services/balancer/nginx.conf)
 
 
 

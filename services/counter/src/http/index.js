@@ -18,7 +18,7 @@ class HttpServer {
         assert(!this._server, 'http server is already started');
         this._app = express();
         this._app.use('/healthcheck', healthcheck(this._config));
-        this._app.use('/', video(this._counterService));
+        this._app.use('/', video(this._counterService, this._config));
 
         this._server = http.createServer(this._app);
         this._statsServer = new StatsServer(this._server, this._communicationMesh);

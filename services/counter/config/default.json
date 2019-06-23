@@ -1,5 +1,6 @@
 {
     "LISTEN_PORT": 1234,
     "NAME": "development-instance",
-    "LOG_LEVEL": "debug"
+    "LOG_LEVEL": "debug",
+    "DEV_MODE": false
 }
