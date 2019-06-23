@@ -45,13 +45,13 @@ Cons's:
 Use [Multicast](https://en.wikipedia.org/wiki/Multicast) traffic to broadcast messages to all nodes. (example: OSPF routing protocol)
 
 Pro's:
-    * Single point to connect. Easy to change cluster size: node does not need to know ip addresses of other nodes. Only multicast group ip address is required.
+* Single point to connect. Easy to change cluster size: node does not need to know ip addresses of other nodes. Only multicast group ip address is required.
 
 Cons's:
-    * Networking issues: may require efforts on networking level: installation should provide multicast traffic delivery to all nodes (IGMP handling should be enabled everywhere, problems with NAT's VPN's)
-    * UDP only: we are not able to use TCP's order and delivery guarantess for multicast.
-    * Docker does not support mulicasts: problems with orchestrations systems like Kubernetes or simply running several instances in docker locally for debugging purposes
-    * Not possible to run several instances of process locally for debugging purposes (all of them listens on same mulicast ip address and on same port, that is forbidden)
+* Networking issues: may require efforts on networking level: installation should provide multicast traffic delivery to all nodes (IGMP handling should be enabled everywhere, problems with NAT's VPN's)
+* UDP only: we are not able to use TCP's order and delivery guarantess for multicast.
+* Docker does not support mulicasts: problems with orchestrations systems like Kubernetes or simply running several instances in docker locally for debugging purposes
+* Not possible to run several instances of process locally for debugging purposes (all of them listens on same mulicast ip address and on same port, that is forbidden)
 
 #### Decision
 According to design goals (simplicity, but CRDT counter implemented), decision is to use some message broker. 
@@ -64,9 +64,9 @@ Cluster lifecycle consists from
 1. periods of normal work (stable set of nodes exchanges messages)
 2. Nodes addition (for instance, need to increase cluster performance)
 3. Nodes removals with several sub-cases 
-3.1 Intentional node removal (e.g. for maintenance)
-3.2 Due to hardware error: machine/service on it really stop to work  (e.g. no space left on hdd or machine was broken)
-3.3 Split brain: machines really working, but are not able to communicate (e.g. some networking issues)
+    1. Intentional node removal (e.g. for maintenance)
+    2. Due to hardware error: machine/service on it really stop to work  (e.g. no space left on hdd or machine was broken)
+    3. Split brain: machines really working, but are not able to communicate (e.g. some networking issues)
 4. Node restart
 
 Let's analyze all this cases
@@ -75,13 +75,16 @@ Nothing interesting. It just works
 
 #### Nodes addition.
 Node addition process should be handled on two levels: Algorithmic and OPS
-1. Algorithmic: Everything is quite easy. Node just appears in cluster, begin to send it's updates to other nodes and begins to accept updates from other machines. Sooner or later new machine will get data from all other machines and begin to return "true" or "near true" value for queries, but this does not block us from "write operations". 
-Generally, in production installation, it would be good to address issue of "starting" node: e.g. make it usable to "read" queries only when it will be synchronized with other nodes.
-2. OPS: Depending on used communication layer implementation (see above) it may be required to reconfigure other nodes in cluster to know about new node
-Additional requirement: Every node should have unique identifier, otherwise system won't be able to work correctly. This may be enforced by some registry (e.g. etcd/zookeeper) or we may use some algorithm to generate identifiers that guarantees uniqueness or probability of collision is very small (e.g. (UUID)[https://en.wikipedia.org/wiki/Universally_unique_identifier])
+1. Algorithmic: Everything is quite easy. Node just appears in cluster, begin to send it's updates to other nodes and begins to accept updates from other machines. Sooner or later new machine will get data from all other machines and begin to return "true" or "near true" value for queries, but this does not block us from "write operations".
+2. OPS: Depending on used communication layer implementation (see above) it may be required to reconfigure other nodes in 
+cluster to know about new node
+
+Notice: Generally, in production installation, it would be good to address issue of "starting" node: e.g. make it usable to "read" queries only when it will be synchronized with other nodes.
+
+Additional requirement: Every node should have unique identifier, otherwise system won't be able to work correctly. This may be enforced by some registry (e.g. etcd/zookeeper) or we may use some algorithm to generate identifiers that guarantees uniqueness or probability of collision is very small (e.g. [UUID/GUID]([https://en.wikipedia.org/wiki/Universally_unique_identifier]))
 
 Decision: according to design goals there is no sense in overengineering. So requirement is guaranteed manually. It's required to start all instances with unique values in `NAME` environment variable.
-It's possuble to implement this using some kind of database (e.g. etcd/zookeeper), but to complicated for test implementation. 
+It's possible to implement this using some kind of database (e.g. etcd/zookeeper), but to complicated for test implementation. 
 
 #### Node removal
 When node is removed we want to guarantee correctness of whole system and not to loose data from node that will be removed. 
