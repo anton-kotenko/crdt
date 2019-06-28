@@ -7,13 +7,28 @@ const healthcheck = require('./healthcheck');
 const video = require('./video');
 const StatsServer = require('./stats');
 
+/**
+ * @class
+ * Http server for whole application
+ */
 class HttpServer {
+    /**
+     * @param {CRDTCounterServiceBase} counterService
+     * @param {CommunicationMeshInterface} communicationMesh
+     * @param {Config} config
+     * @param {Logger} logger
+     */
     constructor (counterService, communicationMesh, config, logger) {
         this._counterService = counterService;
         this._communicationMesh = communicationMesh;
         this._config = config;
         this._logger = logger;
     }
+
+    /**
+     * Attach all routes and begin to listen
+     * @returns <Promise>
+     */
     async start () {
         assert(!this._server, 'http server is already started');
         this._app = express();
@@ -26,9 +41,14 @@ class HttpServer {
         this._logger.info({ port: this._config.get('LISTEN_PORT') }, 'Goint to listen http:// and ws:// at port');
         this._server.listen(this._config.get('LISTEN_PORT'));
     }
+
+    /**
+     * Stop http server
+     * @returns <Promise>
+     */
     async stop () {
         if (this._app) {
-            // FIXME stop everybody
+            // TODO stop everybody
             this._app = null;
             this._server = null;
             await this._statsServer.stop();

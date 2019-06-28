@@ -13,6 +13,8 @@ Operation-based looks better in terms of performance, but it is more complex
 
 Due to this considerations and desing goals (simplicity) the choice is `State-bases`. In heavy-loaded environment, this choice may be changed.
 
+No tests is implemented at all. It's assumed that this contradicts design goals (small and simple and fast to implement)
+
 ## Design considerations
 
 ### Communication layer
@@ -20,26 +22,27 @@ To implement CRDT counter it's required to provide a way to communicate between 
 This requires "full-mesh" connectivity.
 Possible implementations
 
-#### Message bus (Rabbitmq, Kafka). 
+#### Message bus (RabbitMQ, Kafka). 
 Use some already implemented message broker.
 
 Pro's:
-* single point to connect. Easy to change cluster size: node doesn't need to know ip addreses of other nodes. Only broker IP is required.
+* single point to connect. Easy to change cluster size: node doesn't need to know ip addresses of other nodes. Only broker IP is required.
 * small efforts to implement
 
 Cons's: 
-* need to install and maintan one more service.
-* single point of failure and may be bottlneck in really high loaded installations (possible to elimite: most of event brokers may be clusterized)
+* need to install and maintain one more service.
+* single point of failure and may be bottleneck in really high loaded installations (possible to eliminate: most of event brokers may be clusterised)
     
 #### Full mesh
-Implement own full-mesh communication software. Depending on implementation this may use anyhing begining from simple messages over TCP to some standard protocol like GRPC or something else.
+Implement own full-mesh communication software. Depending on implementation this may use anything from simple messages over TCP to some standard protocol like GRPC or something else.
 
 Pro's:
 * With proper implementation may be fast and outperform all other solutions
 * Depending on implementation may nor require any external services as dependencies
+* It may be highly optimized for current application needs
 
 Cons's:
-* Every node need to know about all other nodes. Though possible to implement through some kind of service discovery (etcd/consul/zookeeper or implemented inside of application), but significant efforts is required. 
+* Every node need to know about all other nodes. Though its possible to implement through some kind of service discovery (etcd/consul/zookeeper or implemented inside of application), but significant efforts is required. 
 
 #### Multicast's
 Use [Multicast](https://en.wikipedia.org/wiki/Multicast) traffic to broadcast messages to all nodes. (example: OSPF routing protocol). 
@@ -54,11 +57,11 @@ Cons's:
 * Not possible to run several instances of process locally for debugging purposes (all of them listens on same mulicast ip address and on same port, that is forbidden)
 
 #### Decision
-At first draft of `Multicast's` solution was implemented (try to avoid external dependencies). But faced with all described issue, have no choice but to use some other option.
+At first draft of `Multicast's` solution was implemented (try to avoid external services as dependencies). But faced with all described issue, have no choice but to use some other option.
 
-Second choise is use message broker:
+Second choice is use message broker:
 This gives possibility to avoid building own communication layer, but fulfills design goals (simplicity, but CRDT counter implemented) requirements. 
-For current project Rabbitmq was chosen. Reason: just because I have experience with it. 
+For current project RabbitMQ was chosen. Reason: just because I have experience with it, and it's known to fulfill requirements.
 
 In real super-high load installation it may be bottleneck and should be replaced with something other.
 
@@ -100,18 +103,18 @@ Pro's:
 * the most easiest solution
 
 Cons's:
-* It is not correct. System is not eventutally consistent. Reason: different nodes may have different counter value associated with removed node. And due to node is removed, nobody will ever synchronize them 
+* It is not correct. System is not eventually consistent. Reason: different nodes may have different counter value associated with removed node. And due to node is removed, nobody will ever synchronize them 
 * Our cluster will remember this machine forever, along with it's data: Excessive memory usage, though it may be not a problem for small clusters, when machines does not goes added/removed frequently
 
 **Better solution**:
 All nodes periodically sends snapshot of all theirs data (including counters associated to other nodes).
-On receive node apply "merge" procedure for every node's data (in our case "merge" means  get max of values) to received data and to it's own data. This addresses consistency problem. This also adresses issue when on fail node loose all it's data.
+On receive node apply "merge" procedure for every node's data (in our case "merge" means  get max of values) to received data and to it's own data. This addresses consistency problem. This also addresses issue when on fail node loose all it's data.
 
 **Additional improvement**: in previous solution node's data says in cluster forever. It's possible to apply one more trick:
 After node's removal, one of nodes may increment it's own counter to value of removed node, and then removed node should be forgotten by all nodes alive.
 
 Cons's:
-* Increment and forget operation should be "atomic" thoughout whole cluster, and this is quite hard to implement.
+* Increment and forget operation should be "atomic" throughout whole cluster, and this is quite hard to implement.
 
 Let's look how described algorithm will handle different node removal cases. 
 
@@ -141,7 +144,7 @@ Node restart is sequential node removal + node addition. Both procedures was des
 ### Persistency layer
 Generally, if cluster is large enough, it's possible even not to use persistency layer. Anyway node's data exists at other nodes and can be restored out from there during `merge` operation. This is quite risky solution, but probably usable when performance is more important then correctness/durability.
 
-But in typical case persistent storage is required. Depending on our requirements (performance/relability) we may use different strategies for processing update's 
+But in typical case persistent storage is required. Depending on our requirements (performance/reliability) we may use different strategies for processing update's 
 1. respond to sender only when data is really persisted. 
 2. respond just after message was received, and persist data later.
 
@@ -175,15 +178,15 @@ Whole complex consists from several parts:
 4. `redis` server to provide persistency layer for `video&counter` services
 
 ### Docker-Compose
-It may be started with docker-compose. In this case 3 instances of `video&counter` services, nginx-based `balancer`, `rabbitmq` server and `redis` servers are started.
+It may be started with docker-compose. In this case 3 instances of `video&counter` services, Nginx-based `balancer`, `rabbitmq` server and `redis` servers are started.
 
 All services are accessible on `localhost` or `127.0.0.1` at ports described below:
 1. `video&counter` services are accessible directly at `1231`, `1232` and `1233` ports (first, second and third nodes respectively)
 2. `video&counter` services are accessible through balancer at `1234` port (balancer forwards traffic to arbitrary instance of `video&counter` service according to it's own implementation)
 
-3.`Rabbitmq` admin page is accessible on `15673` port for debugging purposes (non-standart port, to avoid collision with possible rabbitmq already running at machine)
+3.`Rabbitmq` admin page is accessible on `15673` port for debugging purposes (non-standard port, to avoid collision with possible RabbitMQ already running at machine)
 
-4. `Redis` is accessible at 6378 port for debugging purposes (non-standart, to avoid collision with redis, if started locally)
+4. `Redis` is accessible at 6378 port for debugging purposes (non-standard, to avoid collision with Redis, if started locally)
 
 #### Start whole application
 ```sh 
@@ -199,7 +202,7 @@ and to clean-out
 ```sh
 docker-compose down
 ```
-**Notice**: persistent storage and rabbitmq queues are cleand only after `docker-compose down`. CTRL+C does not change nothing
+**Notice**: persistent storage and rabbitmq queues are cleand only after `docker-compose down`. CTRL+C does not change nothing. So to restart from stracth: `docker-compose down && docker-compose up`
 
 #### Starts/stops `video&counter` service
 It's possible to start/stop `video&counter` service containers with docker (to see whole system  handle this).

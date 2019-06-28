@@ -6,7 +6,7 @@ const Application = require('./src/App.js');
     } catch (e) {
         console.error('FATAL ERROR', e);
     }
-    // TODO  Signal handling and uncaught exception handling
+    // TODO Signal handling and uncaught exception handling
     // may be implemented here
     // on SIGXXX Application.stop may be called
 })();

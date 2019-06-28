@@ -1,3 +1,11 @@
+/**
+ * Configuration for application
+ * merges defaults, values defined in file for environment
+ * and ENV variables
+ */
+/**
+ * @typedef {nconf} Config
+ */
 const nconf = require('nconf');
 const path = require('path');
 const DEFAULTS = require('./default.json');

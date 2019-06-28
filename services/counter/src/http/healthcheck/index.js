@@ -1,3 +1,4 @@
+// Just a healthcheck endpoint
 // Notice very simple endpoint. No sense to cut into
 // router and controller parts.
 const { Router } = require('express');

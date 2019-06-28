@@ -1,14 +1,30 @@
 const assert = require('assert');
+
 const amqplib = require('amqplib');
-// FIXME jsdoc
+
 const CommunicationMeshInterface = require('../lib/CommunicationMeshInterface.js');
+
+/**
+ * Class that provides communication tool for all CRDT counters in cluster
+ * Implementation based on RabbitMQ. Design decision is done in README.md
+ */
 class NodesCommunicationMesh extends CommunicationMeshInterface {
+    /**
+     * @param {String} amqpUri connection string to amqp server ('amqp://localhost:5672/vhost')
+     * @param {Logger} logger. Will be used to log different events
+     */
     constructor (amqpUri, logger) {
         super();
         this._logger = logger;
         this._amqpUri = amqpUri;
         this._exchangeName = 'crdt-counter-exchange';
     }
+
+    /**
+     * Start: connect to amqp server and begin to listen proper queues for updates
+     * @override {CommunicationMeshInterface}
+     * @returns {Promise}
+     */
     async start () {
         assert(!this._conn, 'alerady started. Forbidden to start again');
         this._logger.info({ amqpUri: this._amqpUri }, 'Going to connect to rabbitmq');
@@ -30,6 +46,12 @@ class NodesCommunicationMesh extends CommunicationMeshInterface {
         const queue = await this._assertCommunicationEntities();
         this._consumerTag = await this._listenMessages(queue);
     }
+
+    /**
+     * Stop: stop listening, close connection to amqp server and cleanout
+     * @override {CommunicationMeshInterface}
+     * @returns {Promise}
+     */
     async stop () {
         if (this._consumerTag) {
             this._logger.info('Going stop listening messages');
@@ -46,28 +68,48 @@ class NodesCommunicationMesh extends CommunicationMeshInterface {
         }
     }
 
+    /**
+     * Create entities at amqp server used for communication (exchange and queue)
+     * @returns {Promise}
+     */
     async _assertCommunicationEntities () {
         this._logger.info({ exchangeName: this._exchangeName }, 'going to create exchange');
+
+        // Create `fanout` exchange (https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchange-fanout)
+        // Used to broadcast messages to all attached queues
         await this._channel.assertExchange(this._exchangeName, 'fanout');
+        this._logger.info('exchange created');
+
+        // Anonymous exclusive queue.
+        // CRDT counter is designed to handle message lost, so it's safe to remove queue at any time.
+        // Ant this protects us from queue overwhelming if one of service instances in cluster crashes
+        // without queue removing (in this case exchange will forward messages to queue, and nobody will consume them)
         const queue = await this._channel.assertQueue('', {
             durable: false,
             exclusive: true,
             autoDelete: true
         });
         this._logger.info({ queue: queue.queue }, 'created queue');
+
+        // `bind` queue to exchange
         await this._channel.bindQueue(queue.queue, this._exchangeName);
         this._logger.info({ queue: queue.queue, exchangeName: this._exchangeName }, 'binding queue to exchange');
         return queue.queue;
     }
 
+    /**
+     * Begin to listen messasges on queue
+     * @param {String} queue
+     * @returns {String} returns consumer tag. To have possibility to cancel listener later by consumer tag
+     */
     async _listenMessages (queue) {
         const consumerTag = await this._channel.consume(queue, (msg) => {
             if (msg === null) {
-                // msg may be equal to null on channel close. handle this
+                // msg may be equal to null on channel close. Handle this
                 return;
             }
             try {
-                // TODO probably better to apply some tools that ensures proper format of message: jsonschemas or protobufs
+                // TODO use some tools that ensures proper format of message: jsonschemas or protobufs
                 const snapshot = JSON.parse(msg.content);
                 this._logger.trace('got message', snapshot);
                 this.emit('change', snapshot);
@@ -79,8 +121,13 @@ class NodesCommunicationMesh extends CommunicationMeshInterface {
         return consumerTag.consumerTag;
     }
 
+    /**
+     * Notify all other CRDT counters about current node's state
+     * @param {Object<String, String>}
+     * @override {CommunicationMeshInterface}
+     */
     async broadcast (data) {
-        CommunicationMeshInterface.prototype.broadcast(data);
+        super.broadcast(data);
         await this._channel.publish(this._exchangeName, '', Buffer.from(JSON.stringify(data)));
     }
 }
