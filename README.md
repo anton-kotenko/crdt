@@ -188,6 +188,13 @@ All services are accessible on `localhost` or `127.0.0.1` at ports described bel
 
 4. `Redis` is accessible at 6378 port for debugging purposes (non-standard, to avoid collision with Redis, if started locally)
 
+#### Get sources
+```sh
+git clone git@github.com:anton-kotenko/crdt.git 
+cd crdt
+```
+**Notice**: it's assumed that all commands are executed from root folder of project sources
+
 #### Start whole application
 ```sh 
 docker-compose build

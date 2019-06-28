@@ -41,7 +41,7 @@ class CRDTCounter extends EventEmitter {
             const myValue = this._state[key] || 0;
             const otherValue = other._state[key] || 0;
             newState[key] = Math.max(myValue, otherValue);
-            changed = myValue !== newState[key];
+            changed = changed || myValue !== newState[key];
             return newState;
         }, {});
         if (changed) {
